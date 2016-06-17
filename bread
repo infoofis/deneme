@@ -1,0 +1,1369 @@
+//////////////////KÜTÜPHANELER//////////////////
+#include <Time.h>
+#include <Wire.h> 
+#include <OneWire.h> // OneWire kütüphanesini ekliyoruz.
+#include <EEPROM.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_PCD8544.h>
+#include <DS1307RTC.h>
+//////////////////KÜTÜPHANELER BİTTİ//////////////////
+
+Adafruit_PCD8544 display = Adafruit_PCD8544(9, 10, 11, 12, 13); // Ekrani tanimliyoruz
+
+unsigned long Watch, _micro, time = micros();                 // Countdown icin.
+unsigned int Clock = 0, R_clock;                              // Countdown icin. 
+boolean Reset = false, Stop = false, Paused = false, _type;   // Countdown icin. 
+volatile boolean timeFlag = false;                            // Countdown icin. 
+
+#define DOWN 0                                                // Countdown icin. 
+#define UP 1                                                  // Countdown icin. 
+
+int DS18S20_Pin = 2;                                            // Sicaklik sensorumuz
+OneWire ds(DS18S20_Pin);                                        // Sicaklik sensorumuzu konumlandirdik
+#define led1 3                                                  // Ledimizi 3 nolu pine tanimladik
+int buzzer = 4;                                                 // Uyari icin kullanilacak buzzerimizin pinini belirledik.
+int buton1 = 5;                                                 // 1. butonumuzu tanimladik ki bunu asagi secenegi icin kullanacagiz.  
+int buton2 = 6;                                                 // 2. butonumuzu tanimladik ki bunu yukari secenegi icin kullanacagiz.
+int buton3 = 7;                                                 // 3. butonumuzu tanimladik ki bunu okey secenegi icin kullanacagiz.
+int okbuton;                                                    // 3 nolu butonumuzun okey degerini vermesi icin tanimladigimiz degisken.
+int temperature;                                                // DS18B20 sensorumuzden sicaklik degerini alacagimiz degisken.
+int mainmenuid=0;                                               // Ana menu degeri. Ana menu icerisinde gezinmemizi saglayacak.
+int ayarmenuid=0;                                               // Ayarlar Menusu degeri. Ayarlar menusu icerisinde gezinmemizi saglayacak.
+int manuelmenuid=0;                                             // Manuel menu degeri. Manuel menusu icerisinde gezinmemizi saglayacak.
+int adim1menuid=0;                                             // Manuel menu degeri. Manuel menusu icerisinde gezinmemizi saglayacak.
+int adim2menuid=0;                                             // Manuel menu degeri. Manuel menusu icerisinde gezinmemizi saglayacak.
+int adim3menuid=0;                                             // Manuel menu degeri. Manuel menusu icerisinde gezinmemizi saglayacak.
+int adim4menuid=0;                                             // Manuel menu degeri. Manuel menusu icerisinde gezinmemizi saglayacak.
+int manuelmenu1id=0;                                            // Manuel1 menu degeri. Manuel ikinci sayfa menusu icerisinde gezinmemizi saglayacak.
+int tarifmenuid=0;                                              // Tarifler menu degeri. Tarifler menusu icerisinde gezinmemizi saglayacak.
+int ekmekyapmenuid=0;                                            // ekmek Yap menu degeri. ekmek Yap menusu icerisinde gezinmemizi saglayacak.
+int ekmek1menuid=0;                                            // ekmek Yap menu degeri. ekmek Yap menusu icerisinde gezinmemizi saglayacak.
+int mashmenuid=0;                                               // Mashing menu degeri. Mashing menusu icerisinde gezinmemizi saglayacak.
+int stp1menuid=0;                                               // Step 1 menu degeri. Step 1 menusu icerisinde gezinmemizi saglayacak.
+int stp2menuid=0;                                               // Step 2 menu degeri. Step 2 menusu icerisinde gezinmemizi saglayacak.
+int stp3menuid=0;                                               // Step 3 menu degeri. Step 3 menusu icerisinde gezinmemizi saglayacak.
+int boilmenuid=0;                                               // Boiling menu degeri. Boiling menusu icerisinde gezinmemizi saglayacak.
+int hopmenuid=0;                                                // Hop Additions menu degeri. Hop Additions menusu icerisinde gezinmemizi saglayacak.
+volatile byte dgr = 0;                                          // dgr isimli degiskeni ekranin kontrast degerin idegistirmek icin kullanacagiz.
+int counter = 1;                                                // Sistemi baslatmada kullanilacak.
+int SETm;                                                       // SETm isimli bir degisken olusturduk. Bunu Mashing sicaklik degeri belirlemede kullanacagiz.
+int SET1;                                                       // SET1 isimli bir degisken olusturduk. Bunu Step1 sicaklik degeri belirlemede kullanacagiz.
+int SET2;                                                       // SET2 isimli bir degisken olusturduk. Bunu Step2 sicaklik degeri belirlemede kullanacagiz.
+int SET3;                                                       // SET3 isimli bir degisken olusturduk. Bunu Step3 sicaklik degeri belirlemede kullanacagiz.
+int SETb;                                                       // SETb isimli bir degisken olusturduk. Bunu Boiling sicaklik degeri belirlemede kullanacagiz.
+int ZMNm;                                                       // ZMNm isimli bir degisken olusturduk. Bunu Mashing zamanini belirlemede kullanacagiz.
+int ZMN1;                                                       // ZMN1 isimli bir degisken olusturduk. Bunu Step1 zamanini belirlemede kullanacagiz.
+int ZMN2;                                                       // ZMN2 isimli bir degisken olusturduk. Bunu Step2 zamanini belirlemede kullanacagiz.
+int ZMN3;                                                       // ZMN3 isimli bir degisken olusturduk. Bunu Step3 zamanini belirlemede kullanacagiz.
+int ZMNb;                                                       // ZMNb isimli bir degisken olusturduk. Bunu Boiling zamanini belirlemede kullanacagiz.
+int ZMNha1;                                                     // ZMNha1 isimli bir degisken olusturduk. Bunu 1. Hop Addition zamanini belirlemede kullanacagiz.
+int ZMNha2;                                                     // ZMNha2 isimli bir degisken olusturduk. Bunu 2. Hop Addition zamanini belirlemede kullanacagiz.
+int ZMNha3;                                                     // ZMNha3 isimli bir degisken olusturduk. Bunu 3. Hop Addition zamanini belirlemede kullanacagiz.
+
+
+void setup(void) 
+{
+  pinMode(buzzer,OUTPUT);                                       // Pinlerin baglantilarini giris veya cikis olarak ayarliyoruz.
+  pinMode(led1,OUTPUT);                                         // Pinlerin baglantilarini giris veya cikis olarak ayarliyoruz.
+  pinMode(buton1, INPUT);                                       // Pinlerin baglantilarini giris veya cikis olarak ayarliyoruz.  
+  pinMode(buton2, INPUT);                                       // Pinlerin baglantilarini giris veya cikis olarak ayarliyoruz.
+  pinMode(buton3, INPUT);                                       // Pinlerin baglantilarini giris veya cikis olarak ayarliyoruz.
+  pinMode(8, OUTPUT);                                           // LCD ekranın arkaplan aydınlatmasına giden pini çıkış olarak ayarlıyoruz
+  SETm = EEPROM.read(0);                                        // enerji verildiğinde ayarlanan ısı degerleri eepromdan okunuyor
+  SET1 = EEPROM.read(1);                                        // enerji verildiğinde ayarlanan ısı degerleri eepromdan okunuyor
+  SET2 = EEPROM.read(2);                                        // enerji verildiğinde ayarlanan ısı degerleri eepromdan okunuyor
+  SET3 = EEPROM.read(3);                                        // enerji verildiğinde ayarlanan ısı degerleri eepromdan okunuyor
+  SETb = EEPROM.read(4);                                        // enerji verildiğinde ayarlanan ısı degerleri eepromdan okunuyor
+  ZMNm = EEPROM.read(5);                                        // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMN1 = EEPROM.read(6);                                        // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMN2 = EEPROM.read(7);                                        // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMN3 = EEPROM.read(8);                                        // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMNb = EEPROM.read(9);                                        // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMNha1 = EEPROM.read(10);                                     // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMNha2 = EEPROM.read(11);                                     // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  ZMNha3 = EEPROM.read(12);                                     // enerji verildiğinde ayarlanan zaman degerleri eepromdan okunuyor
+  dgr = EEPROM.read(13);                                        // enerji verildiğinde ayarlanan kontrast degeri eepromdan okunuyor
+
+  SetTimer(ZMN1*60);                                               // Countdown Saati
+  StartTimer();                                                 // Countdown baslangici
+  
+  display.begin();                                              // Ekranimizi aktif etmek icin gerekli olan komut
+  display.setRotation(2);                                       // Ekrani ters ceviriyoruz. 
+  display.setContrast(60);                                     // Eeprom dan okunan kontrast degerine gore ekranin kontrastini ayarliyoruz.
+  digitalWrite(8,HIGH);                                         // Ekrana aydınlatmasini aktif yapiyoruz.
+  display.display();                                            // Ekranimiza goruntu bastirmak icin kullandigimiz komut.
+  delay(2000);                                                  // Sistemin kendine gelip toparlanmasi icin bekledigimiz sure.
+  display.clearDisplay();                                       // Tum ekrani temizliyoruz.
+}
+
+void loop(void) 
+{
+  display.display();                                            // Ekranimiza goruntu bastirmak icin kullandigimiz komut.
+  ana_ekran();                                                  // Sistem loop dongusune girdiginde gorunecek ekrani beliriyoruz.
+}
+
+//////////////////Ds18B20 SENSORUNDEN GELEN DEGERI DERECE CINSINE CEVIRIYORUZ//////////////////
+float getTemp()                                                 // Bu degiskeni sensorden gelen sicakligi okumak icin kullanicaz. Float oldugu icin ondalik degerde okuyacak.
+{
+  byte data[12];
+  byte addr[8];
+
+  if ( !ds.search(addr)) 
+  {
+    ds.reset_search();
+    return -1000;
+  }
+
+  if ( OneWire::crc8( addr, 7) != addr[7]) 
+  {
+    display.setCursor(0,1);
+    display.print("CRC is not valid!");
+    return -1000;
+  }
+
+  if ( addr[0] != 0x10 && addr[0] != 0x28) 
+  {
+    display.setCursor(0,1);
+    display.print("Device is not recognized");
+    return -1000;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+  byte present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE); // Read Scratchpad
+
+  for (int i = 0; i < 9; i++) { // we need 9 bytes
+    data[i] = ds.read();
+  }
+
+  ds.reset_search();
+
+  byte MSB = data[1];
+  byte LSB = data[0];
+
+  float tempRead = ((MSB << 8) | LSB); //using two's compliment
+  float TemperatureSum = tempRead / 16;
+
+  return TemperatureSum;
+
+}
+//////////////////Ds18B20 SENSORUNDEN GELEN DEGERI DERECE CINSINE CEVIRME BITTI//////////////////
+
+void ana_ekran()
+{
+  while(1)
+  { display.display();
+    analogoku();
+    //delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("ANA MENU");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi   
+    
+    if(mainmenuid==1) 
+    {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("Ayarlar");
+    if(digitalRead(buton3)==HIGH) 
+    {
+    okbuton=1; ayarlar(); } }
+    else  
+    { 
+    display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 9);
+    display.print("Ayarlar"); }
+
+    if(mainmenuid==2) 
+    {
+    display.setTextColor(WHITE, BLACK);
+        display.setCursor(5, 19);
+    display.print("Manuel");
+    if(digitalRead(buton3)==HIGH)
+    { 
+    okbuton=1; manuel(); } }
+    else {
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(5, 19);
+    display.print("Manuel"); }
+    
+    if(mainmenuid==3) 
+    {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 29);
+    display.print("Tarifler"); 
+    if(digitalRead(buton3)==HIGH)
+    { 
+    okbuton=1; tarifler(); } }
+    else {
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(5, 29);
+    display.print("Tarifler"); }
+    
+    if(mainmenuid==4) 
+    {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 39);
+    display.print("ekmek Yap");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ekmekyap();} }
+    else {   display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 39);
+    display.print("ekmek Yap"); }
+    
+  }}
+int analogoku()
+{
+//  reading=analogRead(buttonPin);
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    mainmenuid++;
+    delay(100); 
+      if(mainmenuid==5)
+      {mainmenuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    mainmenuid--;
+    delay(100);
+      if(mainmenuid==0){  mainmenuid=4;}}
+ //return menuitem;
+ }
+
+void kont(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  display.setTextSize(1);
+  display.clearDisplay();
+  display.setTextColor(BLACK, WHITE);
+  display.setCursor(15, 0);
+  display.print("KONTRAST");
+  display.drawFastHLine(0,10,83,BLACK);
+  display.setTextSize(3);
+  display.setCursor(25, 13);
+  display.print(dgr);
+  display.setContrast(dgr);
+
+  if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    dgr++;
+    delay(100);  
+  }
+  if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    dgr--;
+    delay(100);
+  }
+
+    if(digitalRead(buton3)==HIGH)
+    { 
+      tone(buzzer, 4000, 100);
+    delay(100);
+      okbuton++;
+      delay(100);
+  }
+  if(okbuton>3){
+    tone(buzzer, 4000, 100);
+    delay(100);
+    okbuton=1;
+    display.clearDisplay();
+    delay(100);
+  ana_ekran();
+    }
+  EEPROM.write(13, dgr); // burada set değerini eproma kaydediyoruz
+ }}
+
+void saat() {
+ ana_ekran();
+
+}
+void dil() {
+ ana_ekran();
+
+}
+void adim2() {
+ ana_ekran();
+
+}
+void adim3() {
+ ana_ekran();
+
+}
+void boil() {
+ ana_ekran();
+
+}
+
+void hopadd() {
+ ana_ekran();
+
+}
+
+void tarif1() {
+ ana_ekran();
+
+}
+void tarif2() {
+ ana_ekran();
+
+}
+void tarif3() {
+ ana_ekran();
+
+}
+void tarif4() {
+ ana_ekran();
+
+}
+
+void basladik() {
+ display.clearDisplay();
+  while(1){
+  display.display();
+  ekmekyapoku();
+//delay(10);
+    display.setTextSize(1);
+    display.clearDisplay();
+     temperature = getTemp();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(8, 0);
+    display.print("SET    ACT");
+    display.drawFastHLine(0,8,83,BLACK);
+    display.setCursor(5, 10);
+    display.setTextSize(1);
+    display.print(SETm);
+    display.setCursor(55, 10);
+    display.print(temperature);
+    display.setCursor(5, 20);
+    display.print("BASLADI");
+ if(digitalRead(buton3)==HIGH)     {
+    counter++;
+    delay(100);
+    }
+    if(counter % 2 == 0)
+    {
+    if(temperature<SETm)
+    {
+    digitalWrite(led1,HIGH);
+    delay(1000);
+    }
+    else
+    {
+    digitalWrite(led1, LOW);
+    }
+    if(temperature>=SETm)
+    {
+    display.clearDisplay();
+    display.display();
+    display.setTextColor(  BLACK,WHITE);
+    display.setCursor(5, 10);
+    display.print("Su Hazir");
+    display.setCursor(5, 20);
+    display.print("Sicaklik");
+    display.setCursor(55, 20);
+    display.print(temperature);
+    display.drawCircle(69,20,1, BLACK);
+    display.setCursor(73, 20);
+    display.print("C");
+                   if(ekmekyapmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 40);
+    display.print("Devam");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; delay(100); basla1(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 40);
+    display.print("Devam"); }
+
+     if(ekmekyapmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(50, 40);
+    display.print("Iptal");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ana_ekran(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(50, 40);
+    display.print("Iptal"); }
+    }
+    else
+    {
+    digitalWrite(led1,HIGH);
+    }
+
+    
+    }
+
+}}
+void basla1() {
+ display.clearDisplay();
+  while(1){
+  display.display();
+  ekmek1menuidoku();
+//delay(10);
+    display.setTextSize(1);
+    display.clearDisplay();
+     temperature = getTemp();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(8, 0);
+    display.print("SET    ACT");
+    display.drawFastHLine(0,8,83,BLACK);
+    display.setCursor(5, 10);
+    display.setTextSize(1);
+    display.print(SETm);
+    display.setCursor(55, 10);
+    display.print(temperature);
+    display.setCursor(5, 20);
+    display.print("MALT OK?");
+ if(digitalRead(buton3)==HIGH)     {
+    counter++;
+    delay(100);
+    }
+    if(counter % 2 == 0)
+    {
+    if(temperature<SETm)
+    {
+    digitalWrite(led1,HIGH);
+    delay(1000);
+    }
+    else
+    {
+    digitalWrite(led1, LOW);
+    }
+    if(temperature>=SETm)
+    {
+    display.clearDisplay();
+    display.display();
+    display.setTextColor(  BLACK,WHITE);
+    display.setCursor(5, 10);
+    display.print("Su Hazir11");
+    display.setCursor(5, 20);
+    display.print("Sicaklik1");
+    display.setCursor(55, 20);
+    display.print(temperature);
+    display.drawCircle(69,20,1, BLACK);
+    display.setCursor(73, 20);
+    display.print("C");
+                   if(ekmek1menuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 40);
+    display.print("Devam");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; adim1kont(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 40);
+    display.print("Devam"); }
+
+     if(ekmek1menuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(50, 40);
+    display.print("Iptal");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ana_ekran(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(50, 40);
+    display.print("Iptal"); }
+    }
+    else
+    {
+    digitalWrite(led1,HIGH);
+    }
+
+    
+    }
+
+}}
+void adim1kont() {
+ display.clearDisplay();
+  while(1){
+  display.display();
+  ekmekyapoku();
+//delay(10);
+    display.setTextSize(1);
+    display.clearDisplay();
+     temperature = getTemp();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(8, 0);
+    display.print("SET    ACT");
+    display.drawFastHLine(0,8,83,BLACK);
+    display.setCursor(5, 10);
+    display.setTextSize(1);
+    display.print(SETm);
+    display.setCursor(55, 10);
+    display.print(temperature);
+    display.setCursor(5, 20);
+    display.print("BASLADI");
+ if(digitalRead(buton3)==HIGH)     {
+    counter++;
+    delay(100);
+    }
+    if(counter % 2 == 0)
+    {
+    if(temperature<SETm)
+    {
+    digitalWrite(led1,HIGH);
+    delay(1000);
+    }
+    else
+    {
+    digitalWrite(led1, LOW);
+    }
+    if(temperature>=SETm)
+    {
+    display.clearDisplay();
+    display.display();
+    display.setTextColor(  BLACK,WHITE);
+    display.setCursor(5, 10);
+    display.print("Su Hazir");
+    display.setCursor(5, 20);
+    display.print("Sicaklik");
+    display.setCursor(55, 20);
+    display.print(temperature);
+    display.drawCircle(69,20,1, BLACK);
+    display.setCursor(73, 20);
+    display.print("C");
+                   if(ekmekyapmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 40);
+    display.print("Devam");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; basla1(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 40);
+    display.print("Devam"); }
+
+     if(ekmekyapmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(50, 40);
+    display.print("Iptal");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ana_ekran(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(50, 40);
+    display.print("Iptal"); }
+    }
+    else
+    {
+    digitalWrite(led1,HIGH);
+    }
+
+    
+    }
+
+}}
+
+void destek(){
+    display.clearDisplay();
+  while(1){ 
+    display.display();
+    analogoku();
+     display.setTextColor(  BLACK,WHITE);
+     display.setCursor(0, 0);
+     display.print("Destek icin :");
+     display.setCursor(0, 10);
+    display.print("www.bayekmek.com");
+    display.setCursor(0, 20);
+    display.print("veya");
+    display.setCursor(0, 30);
+    display.print("0212-1234567");
+    if(digitalRead(buton3)==HIGH)
+    { okbuton++;}
+    if(okbuton>3){
+    okbuton=1;
+    display.clearDisplay();
+   delay(100);
+   ana_ekran();
+   }}}
+
+void mashing(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+//    reading=analogRead(buttonPin);
+    delay(100);
+display.setTextSize(1);
+    display.clearDisplay();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(15, 0);
+    display.print("MASHING");
+    display.drawFastHLine(0,10,83,BLACK);
+    display.setTextSize(2);
+    display.setCursor(25, 13);
+    display.print(SETm);
+//    display.display();
+  if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    SETm++;
+    delay(100);  
+  }
+  if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    SETm--;
+    delay(100);
+  }
+
+   if(SETm==0){
+      display.clearDisplay();
+      display.display();
+   display.setTextSize(3);
+     display.setCursor(30, 10);
+    display.print("0");
+    }
+    if(digitalRead(buton3)==HIGH){ okbuton++;
+  }
+  if(okbuton>3){okbuton=1;display.clearDisplay();delay(100);
+  manuel();
+    }
+  EEPROM.write(0, SETm); // burada set değerini eproma kaydediyoruz
+  // SET değer değiştirme buraya kadar
+ delay(100);
+
+}}
+void adim1isi(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+//    reading=analogRead(buttonPin);
+    delay(100);
+display.setTextSize(1);
+    display.clearDisplay();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(15, 0);
+    display.print("1. ADIM ISI");
+    display.drawFastHLine(0,10,83,BLACK);
+    display.setTextSize(2);
+    display.setCursor(35, 13);
+    display.print(SET1);
+//    display.display();
+  if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    SET1++;
+    delay(100);  
+  }
+  if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    SET1--;
+    delay(100);
+  }
+
+   if(SET1==0){
+      display.clearDisplay();
+      display.display();
+   display.setTextSize(3);
+     display.setCursor(30, 10);
+    display.print("0");
+    }
+    if(digitalRead(buton3)==HIGH){ okbuton++;
+  }
+  if(okbuton>3){okbuton=1;display.clearDisplay();delay(100);
+  adim1();
+    }
+  EEPROM.write(1, SET1); // burada set değerini eproma kaydediyoruz
+  // SET değer değiştirme buraya kadar
+ delay(100);
+}}
+void adim1zmn(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+//    reading=analogRead(buttonPin);
+    delay(100);
+display.setTextSize(1);
+    display.clearDisplay();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(15, 0);
+    display.print("1. ADIM ZAMAN");
+    display.drawFastHLine(0,10,83,BLACK);
+    display.setTextSize(2);
+    display.setCursor(25, 13);
+    display.print(ZMN1);
+//    display.display();
+  if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    ZMN1++;
+    delay(100);  
+  }
+  if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(50);
+    ZMN1--;
+    delay(50);
+  }
+
+   if(ZMN1==0){
+      display.clearDisplay();
+      display.display();
+   display.setTextSize(3);
+     display.setCursor(30, 10);
+    display.print("0");
+    }
+    if(digitalRead(buton3)==HIGH){ okbuton++;
+  }
+  if(okbuton>3){okbuton=1;display.clearDisplay();delay(100);
+  adim1();
+    }
+  EEPROM.write(6, ZMN1); // burada set değerini eproma kaydediyoruz
+  // SET değer değiştirme buraya kadar
+ delay(100);
+}}
+
+void adim1(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  adim1menuoku();
+//delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("1. ADIM");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi   
+    
+    if(adim1menuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("Sicaklik");
+    if(digitalRead(buton3)==HIGH) {
+ okbuton=1; adim1isi(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 9);
+    display.print("Sicaklik"); }
+
+     if(adim1menuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("Zaman");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; adim1zmn(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("Zaman"); }
+
+    if(adim1menuid==3) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 29);
+    display.print("Geri");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ana_ekran(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 29);
+    display.print("Geri"); }
+}}
+
+int adim1menuoku()
+{
+//  reading=analogRead(buttonPin);
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    adim1menuid++;
+    delay(100); 
+      if(adim1menuid==4)
+      {adim1menuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    adim1menuid--;
+    delay(100);
+      if(adim1menuid==0){  adim1menuid=3;}}
+ //return menuitem;
+ }
+
+   
+ // Burası AYARLAR SAYFASI
+
+void ayarlar(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  ayarlaroku();
+//delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("AYARLAR");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi   
+    
+    if(ayarmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("Kontrast");
+    if(digitalRead(buton3)==HIGH) {
+ okbuton=1; kont(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 9);
+    display.print("Kontrast"); }
+
+     if(ayarmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("Saat Ayari");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; saat(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("Saat Ayari"); }
+
+    if(ayarmenuid==3) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 29);
+    display.print("Dil");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; dil(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 29);
+    display.print("Dil"); }
+
+    if(ayarmenuid==4) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 39);
+    display.print("Destek");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; destek(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 39);
+    display.print("Destek"); }
+
+ // 1 saniye bekliyoruz. Monitörde saniyede 1 sıcaklık değeri yazmaya devam edecek.
+}}
+
+int ayarlaroku()
+{
+//  reading=analogRead(buttonPin);
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    ayarmenuid++;
+    delay(100); 
+      if(ayarmenuid==5)
+      {ayarmenuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    ayarmenuid--;
+    delay(100);
+      if(ayarmenuid==0){  ayarmenuid=4;}}
+ //return menuitem;
+ }
+
+ void manuel(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  manueloku();
+//delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("MANUEL");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi 
+    
+    if(manuelmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("Masing");
+    if(digitalRead(buton3)==HIGH) {
+ okbuton=1; mashing(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 9);
+    display.print("Masing"); }
+
+     if(manuelmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("1. Adim");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; adim1(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("1. Adim"); }
+
+    if(manuelmenuid==3) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 29);
+    display.print("2. Adim");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; adim2(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 29);
+    display.print("2. Adim"); }
+    
+    if(manuelmenuid==4) {      
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 39);
+    display.print("3. Adim");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; adim3(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 39);
+    display.print("3. Adim"); }
+    
+    if(manuelmenuid==5) 
+    {
+      manuel1();  
+         
+    }
+   
+}}
+
+int manueloku()
+{
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    manuelmenuid++;
+    delay(100); 
+      if(manuelmenuid==6)
+      {manuelmenuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    manuelmenuid--;
+    delay(100);
+      if(manuelmenuid==0){  manuelmenuid=5;}}
+ //return menuitem;
+ }
+
+ void manuel1(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  manueloku1();
+//delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("MANUEL1");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi
+    
+    if(manuelmenu1id==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("> Boiling");
+    if(digitalRead(buton3)==HIGH) {
+ okbuton=1; boil(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 9);
+    display.print("Boiling"); }
+
+     if(manuelmenu1id==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("Hop Additions");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; hopadd(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("Hop Additions"); }
+
+    if(manuelmenu1id==3) 
+    {
+      manuel();     
+    }
+}}
+
+int manueloku1()
+{
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    manuelmenu1id++;
+    delay(100); 
+      if(manuelmenu1id==4)
+      {manuelmenu1id=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    manuelmenu1id--;
+    delay(100);
+      if(manuelmenu1id==0){  manuelmenu1id=3;}}
+ //return menuitem;
+ }
+
+  void tarifler(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  tarifleroku();
+//delay(10);
+    display.clearDisplay();
+    temperature = getTemp();
+    display.setTextSize(1);
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(0, 0);
+    display.print("TARIFLER");
+    display.setCursor(55, 0);
+    display.print(temperature);
+    display.drawCircle(69,2,1, BLACK);
+    display.setCursor(73, 0);
+    display.print("C");
+    display.drawFastHLine(0,7,84,BLACK); // 1.  yatay çizgi
+    display.drawFastVLine(0,7,40,BLACK); // Soldaki dikey çizgi
+    display.drawFastHLine(0,27,84,BLACK); // 3. yatay çizgi
+    display.drawFastHLine(0,17,84,BLACK); // 2. yatay çizgi
+    display.drawFastHLine(0,37,84,BLACK); // 4. yatay çizgi
+    display.drawFastHLine(0,47,84,BLACK); // 5. yatay çizgi
+    display.drawFastVLine(83,7,40,BLACK); // Sağdaki dikey çizgi
+    
+    if(tarifmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 9);
+    display.print("> 1. Tarif");
+    if(digitalRead(buton3)==HIGH) {
+ okbuton=1; tarif1(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 9);
+    display.print("1. Tarif"); }
+
+     if(tarifmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("2. Tarif");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; hopadd(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("2. Tarif"); }
+
+    if(tarifmenuid==3) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 19);
+    display.print("3. Tarif");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; hopadd(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(5, 19);
+    display.print("3. Tarif"); }
+}}
+
+int tarifleroku()
+{
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    tarifmenuid++;
+    delay(100); 
+      if(tarifmenuid==4)
+      {tarifmenuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    tarifmenuid--;
+    delay(100);
+      if(tarifmenuid==0){  tarifmenuid=3;}}
+ //return menuitem;
+ }
+int ekmekyapoku()
+{
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    ekmekyapmenuid++;
+    delay(100); 
+      if(ekmekyapmenuid==3)
+      {ekmekyapmenuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    ekmekyapmenuid--;
+    delay(100);
+      if(ekmekyapmenuid==0){  ekmekyapmenuid=2;}}
+ 
+ }
+int ekmek1menuidoku()
+{
+if(digitalRead(buton1)==HIGH)
+  {
+    digitalWrite(buzzer,HIGH);
+    tone(buzzer, 4250, 100);
+    delay(100);
+    ekmek1menuid++;
+    delay(100); 
+      if(ekmek1menuid==3)
+      {ekmek1menuid=1;}}
+     if(digitalRead(buton2)==HIGH)
+  {
+    tone(buzzer, 4000, 100);
+    delay(100);
+    ekmek1menuid--;
+    delay(100);
+      if(ekmek1menuid==0){  ekmek1menuid=2;}}
+ 
+ }
+ void ekmekyap(){
+  display.clearDisplay();
+  while(1){
+  display.display();
+  ekmekyapoku();
+//delay(10);
+    display.setTextSize(1);
+    display.clearDisplay();
+     temperature = getTemp();
+    display.setTextColor(BLACK, WHITE);
+    display.setCursor(8, 0);
+    display.print("SET    ACT");
+    display.drawFastHLine(0,8,83,BLACK);
+    display.setCursor(5, 10);
+    display.setTextSize(1);
+    display.print(SETm);
+    display.setCursor(55, 10);
+    display.print(temperature);
+    display.setCursor(5, 20);
+    display.print("Su Tamam mi?");
+    
+    if(ekmekyapmenuid==1) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(5, 40);
+    display.print("Basla");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; basladik(); } }
+  else  { display.setTextColor(BLACK,WHITE);
+        display.setCursor(5, 40);
+    display.print("Basla"); }
+
+     if(ekmekyapmenuid==2) {
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(50, 40);
+    display.print("Iptal");
+    if(digitalRead(buton3)==HIGH) {
+    okbuton=1; ana_ekran(); } }
+    else  { display.setTextColor(BLACK,WHITE);
+    display.setCursor(50, 40);
+    display.print("Iptal"); }
+
+}}
+////////////////COUNTDOWN KODLARI ////////////
+boolean CountUpDownTimer(boolean Type)
+{
+  _type = Type;
+  static unsigned long duration = 1000000; // 1 second
+  timeFlag = false;
+
+  if (!Stop && !Paused) // if not Stopped or Paused, run timer
+  {
+    // check the time difference and see if 1 second has elapsed
+    if ((_micro = micros()) - time > duration ) 
+    {
+      _type == UP? Clock++ : Clock--;
+      timeFlag = true;
+
+      if (_type == DOWN && Clock == 0) // check to see if the clock is 0
+        {Stop = true; // If so, stop the timer
+        Serial.print("deneme");
+        }
+     // check to see if micros() has rolled over, if not,
+     // then increment "time" by duration
+      _micro < time ? time = _micro : time += duration; 
+    }
+  }
+  return !Stop; // return the state of the timer
+}
+
+void ResetTimer()
+{
+  if(_type) 
+    Clock = 0;
+  else
+    SetTimer(R_clock);
+
+  Stop = false;
+}
+
+void StartTimer()
+{
+  Watch = micros(); // get the initial microseconds at the start of the timer
+  Stop = false;
+  Paused = false;
+  if(_type == UP) 
+    Clock = 0;
+}
+
+void StopTimer()
+{
+  Stop = true;
+}
+
+void StopTimerAt(unsigned int hours, unsigned int minutes, unsigned int seconds)
+{
+  if (TimeCheck(hours, minutes, seconds) )
+    Stop = true;
+}
+
+void PauseTimer()
+{
+  Paused = true;
+}
+
+void ResumeTimer() // You can resume the timer if you ever stop it.
+{
+  Paused = false;
+}
+
+void SetTimer(unsigned int hours, unsigned int minutes, unsigned int seconds)
+{
+  // This handles invalid time overflow ie 1(H), 0(M), 120(S) -> 1, 2, 0
+  unsigned int _S = (seconds / 60), _M = (minutes / 60);
+  if(_S) minutes += _S;
+  if(_M) hours += _M;
+
+  Clock = (hours * 3600) + (minutes * 60) + (seconds % 60);
+  R_clock = Clock;
+  Stop = false;
+}
+
+void SetTimer(unsigned int seconds)
+{
+ // StartTimer(seconds / 3600, (seconds / 3600) / 60, seconds % 60);
+ Clock = seconds;
+ R_clock = Clock;
+ Stop = false;
+}
+
+int ShowHours()
+{
+  return Clock / 3600;
+}
+
+int ShowMinutes()
+{
+  return (Clock / 60);
+}
+
+int ShowSeconds()
+{
+  return Clock % 60;
+}
+
+unsigned long ShowMilliSeconds()
+{
+  return (_micro - Watch)/ 1000.0;
+}
+
+unsigned long ShowMicroSeconds()
+{
+  return _micro - Watch;
+}
+
+boolean TimeHasChanged()
+{
+  return timeFlag;
+}
+
+// output true if timer equals requested time
+boolean TimeCheck(unsigned int hours, unsigned int minutes, unsigned int seconds) 
+{
+  return (hours == ShowHours() && minutes == ShowMinutes() && seconds == ShowSeconds());
+}
+
